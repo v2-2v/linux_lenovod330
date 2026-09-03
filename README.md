@@ -221,12 +221,27 @@ this repo's overall license.
 
 ## Disclaimer
 
-This patches and boots a custom kernel on real hardware. Follow the
-safe-boot pattern in the installation steps (separate GRUB entry, pinned
-`GRUB_DEFAULT`, `grub-reboot` for one-shot testing) — don't make an
-unverified custom kernel your only boot option. Everything here is provided
-as-is, from a personal hardware investigation; no warranty, and no
-affiliation with Intel or Lenovo.
+**Use at your own risk.** This involves patching and booting a custom
+kernel, flipping GPIOs on real hardware, and (per the installation notes)
+disabling Secure Boot. None of that is undoable-proof: a bad boot, a wrong
+GPIO index adapted from this patch, or a mistake following the install
+steps could leave a machine unbootable, and in the worst case damage
+hardware. Follow the safe-boot pattern in the installation steps (separate
+GRUB entry, pinned `GRUB_DEFAULT`, `grub-reboot` for one-shot testing)
+every time — don't make an unverified custom kernel your only boot option.
+
+This is shared as-is, from a personal hardware investigation, with **no
+warranty of any kind and no affiliation with Intel or Lenovo**. The author(s)
+and contributors accept **no responsibility or liability for any damage** —
+to hardware, data, software, or otherwise — arising from using, adapting,
+or building on anything in this repository, including but not limited to a
+bricked device. See `LICENSE` for the full, legally-binding disclaimer that
+governs this repo's content; this section restates it in plain language for
+anyone about to `grub-reboot` into a patched kernel and should not be read
+as replacing it. If you're not comfortable with that level of risk, don't
+run this — stick to the community-recommended workaround (mask the sleep
+targets, live with the screen never blanking, or accept the DPMS-triggered
+version of the bug).
 
 ## Background reading
 
