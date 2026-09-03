@@ -129,22 +129,27 @@ events.
   and a working compiler toolchain (`build-essential` or equivalent) — DKMS
   needs these to build against your kernel; method 2 needs a full matching
   kernel source package instead.
-- **Secure Boot**: with method 1, on a `shim-signed`-based distro (Ubuntu,
-  Mint, Debian...) `dkms build` auto-generates a MOK (Machine Owner Key) at
-  `/var/lib/shim-signed/mok/` if you don't have one yet, and signs the
-  module with it — but *signing isn't the same as trusting*. Secure Boot
-  will only accept it once that MOK is actually **enrolled** in firmware,
-  which is a one-time, per-machine, physically-confirmed step (can't be
-  scripted over SSH): `sudo mokutil --import /var/lib/shim-signed/mok/MOK.der`,
-  set a temporary password, reboot, and complete it at the blue "MOK
-  Manager" screen. Check `sudo mokutil --list-enrolled` — if this MOK's
-  fingerprint isn't already listed, either enroll it once (Secure Boot can
-  then stay on for good) or just leave Secure Boot off. Method 2 doesn't
-  sign anything at all, so it needs Secure Boot off (or you sign the kernel
-  yourself) every time.
+- **Secure Boot must be disabled.** Verified on real hardware: even though
+  `dkms build` (method 1) auto-generates a MOK and signs the module with
+  it, turning Secure Boot back on with that MOK *not yet enrolled* in
+  firmware results in `i915` silently not loading at all (no error, just
+  absent from `lsmod`/`dmesg`) — no working display. In principle, one-time
+  MOK enrollment (`sudo mokutil --import /var/lib/shim-signed/mok/MOK.der`,
+  reboot, confirm at the blue "MOK Manager" screen) is supposed to let
+  Secure Boot stay on for good, but that path hasn't been verified working
+  here — treat "Secure Boot off" as the requirement for now. If you need
+  Secure Boot on, use method 2 and sign the resulting kernel yourself with
+  your own enrolled key. On the D330 specifically, tap **Fn+2** at power-on
+  to get into firmware setup and toggle it off.
 - `sudo` access.
 
 ## Installation — method 1: DKMS (recommended)
+
+**Before you start: disable Secure Boot in firmware setup** (on the D330,
+tap Fn+2 at power-on). See [Requirements](#requirements) above for why —
+in short, the module gets signed but that signature isn't trusted by
+default, so `i915` silently fails to load under Secure Boot as things
+stand.
 
 Builds and installs a drop-in `i915.ko` for the kernel you're already
 running — no separate kernel, no new GRUB entry, no `grub-reboot` dance.
