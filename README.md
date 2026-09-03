@@ -200,6 +200,16 @@ events.
   to get into firmware setup and toggle it off.
 - `sudo` access.
 
+## Get the repo
+
+One-time, before either installation method — everything below assumes
+the repo lives at `~/linux_lenovod330`:
+
+```bash
+git clone https://github.com/v2-2v/linux_lenovod330.git ~/linux_lenovod330
+cd ~/linux_lenovod330
+```
+
 ## Installation — method 1: DKMS (recommended)
 
 **Before you start: disable Secure Boot in firmware setup** (on the D330,
@@ -211,11 +221,9 @@ stand.
 Builds and installs a drop-in `i915.ko` for the kernel you're already
 running — no separate kernel, no new GRUB entry, no `grub-reboot` dance.
 DKMS also rebuilds it automatically the next time your kernel updates.
-Copy-paste the whole block below as-is:
 
 ```bash
-git clone https://github.com/v2-2v/linux_lenovod330.git
-cd linux_lenovod330
+cd ~/linux_lenovod330
 
 sudo apt-get install -y dkms linux-headers-$(uname -r) build-essential
 
@@ -285,7 +293,7 @@ building and booting an entire replacement kernel, not just one module.
 
 ```bash
 cd /path/to/matching/linux-source-<version>
-patch -p1 < patches/0001-d330-backlight-gpio-param.patch
+patch -p1 < ~/linux_lenovod330/patches/0001-d330-backlight-gpio-param.patch
 make M=drivers/gpu/drm/i915   # fast incremental rebuild if the rest of the
                                # tree is already configured/built; otherwise
                                # do a normal full kernel build
@@ -330,12 +338,12 @@ below to get actual idle-timeout and lid-close automation.
 kernel module only exposes the on/off knob; these scripts are what actually
 turn the backlight off on idle/lid-close and back on. Run this once
 `d330_backlight_gpio` exists (verified above). This is typically a fresh
-shell (e.g. after the method 1 reboot), so the whole block below starts by
-getting you into the cloned repo directory itself — copy-paste the whole
-thing as-is, from any starting directory:
+shell (e.g. after the method 1 reboot), so start with `cd
+~/linux_lenovod330` (the repo you cloned in [Get the
+repo](#get-the-repo)):
 
 ```bash
-cd ~/linux_lenovod330 || { cd ~ && git clone https://github.com/v2-2v/linux_lenovod330.git && cd linux_lenovod330; }
+cd ~/linux_lenovod330
 
 sudo install -m 755 scripts/d330-backlight.sh /usr/local/bin/d330-backlight.sh
 sudo install -m 755 scripts/d330-backlight-idle.sh /usr/local/bin/d330-backlight-idle.sh
