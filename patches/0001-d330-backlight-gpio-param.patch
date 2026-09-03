@@ -1,0 +1,96 @@
+From: linux_lenovod330
+Subject: [PATCH] drm/i915/dsi: add standalone backlight-enable GPIO toggle (D330)
+License: SPDX-License-Identifier: GPL-2.0-only (derivative of intel_dsi_vbt.c,
+         matching the license of the file it patches, regardless of this
+         repo's overall license)
+
+Adds a write-only module parameter, d330_backlight_gpio, that directly
+drives VBT GPIO index 4 (the panel's backlight-enable line) via the
+driver's existing bxt_gpio_set_value(), completely decoupled from the
+CRTC enable/disable state machine.
+
+Rationale: on Gemini-Lake-class DSI panels wired like the Lenovo
+D330-10IGM, the backlight-enable GPIO (index 4) is circuit-independent
+of the panel power rail (index 3) -- confirmed against the board
+schematic. The known "black screen after suspend/DPMS" bug on this
+panel family is triggered by the panel power/reset GPIO cycle and DSI
+protocol re-init that happen on every CRTC disable/enable, not by the
+backlight line itself. This lets userspace turn the backlight fully
+off/on (e.g. on an idle timer, or on lid close/open) without ever
+going near that path.
+
+GPIO index 3 (panel power) and index 4 (backlight) are already held
+exclusively by i915 as gpiod consumers from probe time onward (visible
+in `gpioinfo` as `[used]`, consumer being the i915 PCI device), so this
+cannot be done from userspace with generic gpiod/libgpiod tools -- it
+has to be driven from inside the module.
+
+The connector pointer is captured in intel_dsi_vbt_gpio_init(), which
+always runs exactly once during intel_dsi_init() regardless of
+platform (its body is a no-op outside VLV/CHV, but it still runs) and
+regardless of whether the panel came up via a full VBT sequence or via
+i915's BIOS-fb "fastset" reuse path -- so the pointer is valid before
+any real DSI enable/disable cycle has ever executed.
+
+See the accompanying README for background, verification notes, and
+how to adapt the "4" (backlight GPIO index) if your panel uses a
+different one.
+---
+--- a/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
++++ b/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
+@@ -311,9 +311,45 @@ static void bxt_gpio_set_value(struct intel_connector *connector,
+ 			       u8 gpio_index, bool value)
+ {
+ 	soc_gpio_set_value(connector, gpio_index, NULL, gpio_index, value);
+ }
+
++/*
++ * D330: standalone backlight-enable GPIO (VBT index 4) toggle, decoupled
++ * from the normal CRTC enable/disable state machine. The panel power rail
++ * (index 3) and DSI protocol re-init are never touched by this, so it does
++ * not go through the resume path that has the known black-screen bug (see
++ * the project README: backlight EN is circuit-independent of panel power
++ * per the board schematic). Captured connector pointer comes from
++ * intel_dsi_vbt_gpio_init(), which always runs once at probe regardless of
++ * platform or fastset.
++ */
++static struct intel_connector *d330_bl_connector;
++
++static int d330_backlight_gpio_set(const char *val, const struct kernel_param *kp)
++{
++	unsigned long value;
++	int ret = kstrtoul(val, 0, &value);
++
++	if (ret)
++		return ret;
++
++	if (!d330_bl_connector) {
++		pr_warn("d330_backlight_gpio: no connector captured yet\n");
++		return -ENODEV;
++	}
++
++	bxt_gpio_set_value(d330_bl_connector, 4, !!value);
++	return 0;
++}
++
++static const struct kernel_param_ops d330_backlight_gpio_ops = {
++	.set = d330_backlight_gpio_set,
++	.get = NULL,
++};
++module_param_cb(d330_backlight_gpio, &d330_backlight_gpio_ops, NULL, 0200);
++MODULE_PARM_DESC(d330_backlight_gpio,
++		 "D330: directly drive VBT GPIO index 4 (backlight enable) without touching panel power/reset (write 0 or 1)");
++
+ enum {
+ 	MIPI_RESET_1 = 0,
+ 	MIPI_AVDD_EN_1,
+@@ -1018,6 +1054,8 @@ void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on)
+ {
+ 	struct intel_display *display = to_intel_display(&intel_dsi->base);
+ 	struct intel_connector *connector = intel_dsi->attached_connector;
+ 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
++
++	d330_bl_connector = connector;
+ 	enum gpiod_flags flags = panel_is_on ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
+ 	struct gpiod_lookup_table *gpiod_lookup_table = NULL;
+ 	bool want_backlight_gpio = false;

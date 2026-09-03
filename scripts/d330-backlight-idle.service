@@ -1,0 +1,9 @@
+[Unit]
+Description=D330 backlight-only idle screen off (avoids DPMS/DSI power-cycle bug)
+
+[Service]
+ExecStart=/usr/local/bin/d330-backlight-idle.sh
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
