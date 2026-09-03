@@ -329,11 +329,14 @@ below to get actual idle-timeout and lid-close automation.
 **Required regardless of which installation method you used above** — the
 kernel module only exposes the on/off knob; these scripts are what actually
 turn the backlight off on idle/lid-close and back on. Run this once
-`d330_backlight_gpio` exists (verified above), **from inside the cloned
-repo directory** (`cd linux_lenovod330` if you're not already there —
-`scripts/...` below is a relative path):
+`d330_backlight_gpio` exists (verified above). This is typically a fresh
+shell (e.g. after the method 1 reboot), so the whole block below starts by
+getting you into the cloned repo directory itself — copy-paste the whole
+thing as-is, from any starting directory:
 
 ```bash
+cd ~/linux_lenovod330 || { cd ~ && git clone https://github.com/v2-2v/linux_lenovod330.git && cd linux_lenovod330; }
+
 sudo install -m 755 scripts/d330-backlight.sh /usr/local/bin/d330-backlight.sh
 sudo install -m 755 scripts/d330-backlight-idle.sh /usr/local/bin/d330-backlight-idle.sh
 sudo install -m 755 scripts/d330-set-idle-timeout.sh /usr/local/bin/d330-set-idle-timeout
