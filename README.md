@@ -295,9 +295,15 @@ sudo systemctl restart systemd-logind acpid
 ```
 
 `xprintidle` is required by the idle daemon (`sudo apt-get install
-xprintidle`); it needs an X11 session (this was built/tested under Cinnamon
-on X11 — a Wayland equivalent would need a different idle-detection
-mechanism, e.g. the compositor's own idle protocol).
+xprintidle`); it needs an X11 session.
+
+**Tested on**: Linux Mint 22.3 (Cinnamon, X11) only, so far. The kernel
+patch/module itself doesn't care about your desktop or display server, but
+the idle daemon here is X11-only (via `xprintidle`) — Wayland support
+(likely via the compositor's own idle-notify protocol) hasn't been done
+yet and is planned. `acpid`-based lid handling and the plain
+`d330-backlight.sh off`/`on` script don't touch X11 at all, so those
+should already work under Wayland as-is.
 
 ## Changing the idle timeout
 
