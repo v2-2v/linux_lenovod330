@@ -284,9 +284,14 @@ mechanism, e.g. the compositor's own idle protocol).
 
 ```bash
 d330-set-idle-timeout 10   # minutes; takes effect within ~2s, no restart needed
+d330-set-idle-timeout off  # disable idle auto-off entirely (stops the service)
 ```
 
-This just writes `IDLE_MINUTES=10` to `~/.config/d330-backlight-idle.conf`,
+`off` stops the `d330-backlight-idle.service` systemd `--user` unit; running
+`d330-set-idle-timeout <minutes>` again re-enables and restarts it. Lid
+close/open handling (`acpid`) is a separate mechanism and keeps working
+either way. Under the hood, setting a timeout just writes
+`IDLE_MINUTES=10` to `~/.config/d330-backlight-idle.conf`,
 which the daemon re-reads on every poll.
 
 ## Adapting to a different panel
