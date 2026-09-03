@@ -385,6 +385,8 @@ should already work under Wayland as-is.
 
 ## Changing the idle timeout
 
+The default, set by the install steps above, is **5 minutes**.
+
 ```bash
 d330-set-idle-timeout 10   # minutes; takes effect within ~2s, no restart needed
 d330-set-idle-timeout off  # disable idle auto-off entirely (stops the service)
