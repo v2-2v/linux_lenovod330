@@ -129,9 +129,11 @@ decoupled from the CRTC enable/disable state machine. Writing `0`/`1` to it
 physically cuts/restores backlight power, with **zero interaction with the
 buggy resume path.**
 
-```
-$ echo 0 | sudo tee /sys/module/i915/parameters/d330_backlight_gpio   # backlight off, panel stays live
-$ echo 1 | sudo tee /sys/module/i915/parameters/d330_backlight_gpio   # backlight on
+```bash
+# backlight off, panel stays live
+echo 0 | sudo tee /sys/module/i915/parameters/d330_backlight_gpio
+# backlight on
+echo 1 | sudo tee /sys/module/i915/parameters/d330_backlight_gpio
 ```
 
 Verified on real hardware: true physical backlight cutoff (unlike
@@ -230,15 +232,17 @@ sudo update-initramfs -u
 sudo reboot
 ```
 
-After rebooting:
+After rebooting, run:
 
 ```bash
-$ modinfo -F filename i915
-/lib/modules/$(uname -r)/updates/dkms/i915.ko.zst      # confirms the DKMS build won, not the stock one
-
-$ ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
-d330_backlight_gpio
+modinfo -F filename i915
+ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
 ```
+
+The first command should print a path ending in
+`updates/dkms/i915.ko.zst` (confirms the DKMS build won, not the stock one
+under `kernel/drivers/gpu/drm/i915/`), and the second should print
+`d330_backlight_gpio`.
 
 **This module param alone does nothing by itself** — it just gives you a
 knob. Continue to
@@ -310,9 +314,10 @@ anything when something explicitly writes to `d330_backlight_gpio`.
 ### 2. Verify the module param exists
 
 ```bash
-$ ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
-d330_backlight_gpio
+ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
 ```
+
+Should print `d330_backlight_gpio`.
 
 **This module param alone does nothing by itself** — it just gives you a
 knob. Continue to
