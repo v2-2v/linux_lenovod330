@@ -8,9 +8,9 @@ long-standing "black screen after suspend/DPMS" bug that affects this panel
 family on Linux.
 
 This started as a deep-dive into that resume bug (full write-up, in
-Japanese: see [`public.md`](public.md) in this repo). The
-conclusion of that investigation was that the bug **cannot be reliably fixed
-in software**, and the community-recommended workaround is to disable
+Japanese: [qiita.com/v2-2v/items/5a0f0b72e93312a4a026](https://qiita.com/v2-2v/items/5a0f0b72e93312a4a026)).
+The conclusion of that investigation was that the bug **cannot be reliably
+fixed in software**, and the community-recommended workaround is to disable
 suspend entirely and rely on the desktop's screen-blank/DPMS timeout
 instead:
 
@@ -25,6 +25,22 @@ disabling suspend and then also disabling DPMS (to avoid the DPMS-triggered
 version of the same bug) just leaves you with a screen that never turns off
 at all — which is what several D330 setup guides end up recommending, and
 what pushed this project.
+
+## What this repository provides
+
+- A small, targeted i915 kernel patch, packaged as a **DKMS module** so
+  installing it is a `git clone` + a handful of commands — no full custom
+  kernel required (a manual full-kernel build path is included too, as a
+  fallback).
+- Userspace glue (a systemd `--user` idle daemon and an `acpid` lid-switch
+  handler) that uses the patch to turn just the backlight off after an idle
+  timeout or on lid close, and back on on activity or lid open.
+
+Together, these let you keep suspend disabled (the workaround above) while
+still getting a screen that actually turns off — without hitting the
+DPMS-triggered version of the same bug. See [The trick](#the-trick) below
+for how the patch itself avoids that bug, and
+[Installation](#installation--method-1-dkms-recommended) to just install it.
 
 ## The trick
 
@@ -126,8 +142,12 @@ events.
 Builds and installs a drop-in `i915.ko` for the kernel you're already
 running — no separate kernel, no new GRUB entry, no `grub-reboot` dance.
 DKMS also rebuilds it automatically the next time your kernel updates.
+Copy-paste the whole block below as-is:
 
 ```bash
+git clone https://github.com/v2-2v/linux_lenovod330.git
+cd linux_lenovod330
+
 sudo apt-get install -y dkms linux-headers-$(uname -r) build-essential
 
 sudo cp -r dkms/d330-i915-2.0 /usr/src/
@@ -327,4 +347,5 @@ version of the bug).
 The full investigation that led here — kernel/GOP/Windows-driver source
 comparison, VBT bytecode decoding, board schematic analysis, and the long
 process of ruling out fixes for the underlying resume bug before finding
-this workaround — is written up in `public.md` (Japanese).
+this workaround — is written up on Qiita (Japanese):
+[qiita.com/v2-2v/items/5a0f0b72e93312a4a026](https://qiita.com/v2-2v/items/5a0f0b72e93312a4a026).
