@@ -329,7 +329,9 @@ below to get actual idle-timeout and lid-close automation.
 **Required regardless of which installation method you used above** — the
 kernel module only exposes the on/off knob; these scripts are what actually
 turn the backlight off on idle/lid-close and back on. Run this once
-`d330_backlight_gpio` exists (verified above):
+`d330_backlight_gpio` exists (verified above), **from inside the cloned
+repo directory** (`cd linux_lenovod330` if you're not already there —
+`scripts/...` below is a relative path):
 
 ```bash
 sudo install -m 755 scripts/d330-backlight.sh /usr/local/bin/d330-backlight.sh
@@ -338,9 +340,9 @@ sudo install -m 755 scripts/d330-set-idle-timeout.sh /usr/local/bin/d330-set-idl
 sudo install -Dm644 scripts/d330-backlight-idle.service /etc/systemd/user/d330-backlight-idle.service
 
 # least-privilege sudo grant so the (unprivileged) idle daemon can flip the
-# backlight without a password prompt, without granting it root generally
-# (replace YOUR_USER with your actual username)
-echo 'YOUR_USER ALL=(root) NOPASSWD: /usr/local/bin/d330-backlight.sh off, /usr/local/bin/d330-backlight.sh on' \
+# backlight without a password prompt, without granting it root generally.
+# Uses $USER (your current shell's username) -- no manual editing needed.
+echo "$USER ALL=(root) NOPASSWD: /usr/local/bin/d330-backlight.sh off, /usr/local/bin/d330-backlight.sh on" \
   | sudo tee /etc/sudoers.d/d330-backlight
 sudo chmod 440 /etc/sudoers.d/d330-backlight
 sudo visudo -cf /etc/sudoers.d/d330-backlight   # sanity-check syntax before trusting it
