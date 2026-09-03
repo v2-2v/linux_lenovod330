@@ -45,11 +45,15 @@ verified on), do these two first, before installing this repo:
    — the original community setup guide for this model on Mint (disables
    suspend, tames several other D330-on-Mint quirks). This repo builds on
    top of that baseline.
-2. [v2-2v/linux_lenovod330-linuxmint-login-backlight-only-fix](https://github.com/v2-2v/linux_lenovod330-linuxmint-login-backlight-only-fix)
+2. [v2-2v/d330-scripts-for-linux-mint](https://github.com/v2-2v/d330-scripts-for-linux-mint),
+   specifically its
+   [`login-backlight-only-fix/`](https://github.com/v2-2v/d330-scripts-for-linux-mint/tree/main/login-backlight-only-fix)
    — fixes a *different* trigger of this same underlying bug: the screen
    sometimes coming up backlight-only right at the login→desktop
    transition (Cinnamon auto-rotating the display forces a modeset). Works
    standalone on a stock kernel, independent of this repo's DKMS patch.
+   That repo also collects other small D330-on-Mint userspace fixes
+   (e.g. accelerometer-based screen flip) unrelated to the kernel patch here.
 
 ## Before you install: disable suspend AND your desktop's own screen-blanking
 
