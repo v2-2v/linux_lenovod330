@@ -38,9 +38,7 @@ different one.
 ---
 --- a/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
 +++ b/drivers/gpu/drm/i915/display/intel_dsi_vbt.c
-@@ -311,9 +311,45 @@ static void bxt_gpio_set_value(struct intel_connector *connector,
- 			       u8 gpio_index, bool value)
- {
+@@ -315,6 +315,43 @@
  	soc_gpio_set_value(connector, gpio_index, NULL, gpio_index, value);
  }
 
@@ -84,8 +82,7 @@ different one.
  enum {
  	MIPI_RESET_1 = 0,
  	MIPI_AVDD_EN_1,
-@@ -1018,6 +1054,8 @@ void intel_dsi_vbt_gpio_init(struct intel_dsi *intel_dsi, bool panel_is_on)
- {
+@@ -898,6 +935,8 @@
  	struct intel_display *display = to_intel_display(&intel_dsi->base);
  	struct intel_connector *connector = intel_dsi->attached_connector;
  	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;

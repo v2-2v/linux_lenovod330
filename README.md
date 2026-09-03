@@ -87,7 +87,13 @@ events.
 
 ## What's in this repo
 
-- `patches/0001-d330-backlight-gpio-param.patch` — the kernel patch
+- `dkms/d330-i915-2.0/` — **method 1 (recommended):** a DKMS package —
+  the full, patched `drivers/gpu/drm/i915` source plus `dkms.conf` and a
+  `dkms-prebuild.sh` helper, building a drop-in `i915.ko` replacement
+  against whatever kernel you're already running. No full kernel build.
+- `patches/0001-d330-backlight-gpio-param.patch` — **method 2:** the same
+  change as a standalone patch, for building a complete custom kernel by
+  hand (what this project originally used, before packaging it as DKMS).
 - `scripts/d330-backlight.sh` — thin wrapper: `off`/`on` → sysfs write
 - `scripts/d330-backlight-idle.sh` — idle-timeout daemon (polls `xprintidle`)
 - `scripts/d330-set-idle-timeout.sh` — change the idle timeout live, no restart
@@ -103,15 +109,81 @@ events.
   D330-10IGM; likely applies to D330-10IGL and similar Bay Trail/Cherry
   Trail/Gemini Lake DSI tablets — see the write-up for the list of affected
   vendors).
-- Ability to build a kernel module against your running kernel version
-  (kernel headers/source matching `uname -r`).
-- **Secure Boot must be disabled**, or you must sign the resulting kernel/
-  module with a key enrolled in your firmware's MOK — this patch is not
-  itself signed, and an unsigned kernel/module will silently fail to boot/
-  load under Secure Boot.
-- `sudo` access, and comfort with building/booting a custom kernel.
+- Kernel headers matching your running kernel (`linux-headers-$(uname -r)`)
+  and a working compiler toolchain (`build-essential` or equivalent) — DKMS
+  needs these to build against your kernel; method 2 needs a full matching
+  kernel source package instead.
+- **Secure Boot**: if your system already has a MOK (Machine Owner Key)
+  enrolled for DKMS module signing — common if you've ever installed the
+  NVIDIA driver or anything else via DKMS — `dkms build` signs the module
+  automatically and it Just Works under Secure Boot. Otherwise, disable
+  Secure Boot, or enroll a MOK and sign it yourself; an unsigned
+  kernel/module will silently fail to load.
+- `sudo` access.
 
-## Installation
+## Installation — method 1: DKMS (recommended)
+
+Builds and installs a drop-in `i915.ko` for the kernel you're already
+running — no separate kernel, no new GRUB entry, no `grub-reboot` dance.
+DKMS also rebuilds it automatically the next time your kernel updates.
+
+```bash
+sudo apt-get install -y dkms linux-headers-$(uname -r) build-essential
+
+sudo cp -r dkms/d330-i915-2.0 /usr/src/
+sudo chmod +x /usr/src/d330-i915-2.0/dkms-prebuild.sh
+sudo dkms add -m d330-i915 -v 2.0
+sudo dkms build -m d330-i915 -v 2.0
+sudo dkms install -m d330-i915 -v 2.0
+
+# i915 is commonly loaded from the initramfs for early KMS -- rebuild it so
+# the new module is what actually gets loaded at boot, not a stale cached copy
+sudo update-initramfs -u
+
+sudo reboot
+```
+
+After rebooting:
+
+```bash
+$ modinfo -F filename i915
+/lib/modules/$(uname -r)/updates/dkms/i915.ko.zst      # confirms the DKMS build won, not the stock one
+
+$ ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
+d330_backlight_gpio
+```
+
+**Why the source is bundled instead of just the patch**: out-of-tree builds
+of `drivers/gpu/drm/i915` hit a handful of headers that `#include` siblings
+by a path that only resolves when the driver lives inside a real kernel
+source tree (tracepoint headers, plus a couple of cross-references into
+`display/`, `gt/`, and one header borrowed from
+`drivers/platform/x86/intel_ips.h`). `dkms-prebuild.sh` symlinks those into
+place inside your installed kernel headers before the build runs, without
+touching any file that actually belongs to the `linux-headers` package —
+see the script for exactly what it does. This is why the package ships the
+whole driver directory (14MB) rather than just the one-file patch.
+
+> **usr-merge warning:** if you ever hand-copy this package instead of
+> using the commands above, don't `cp`/`tar` a `lib/`-rooted tree straight
+> onto `/` on a system where `/lib -> usr/lib` is a symlink — you can end
+> up replacing that symlink with a real directory and silently breaking
+> every path through it. (Hit this once during development; not a risk
+> with the `dkms add`/`cp -r .../usr/src/` flow above.)
+
+### Removing it
+
+```bash
+sudo dkms remove -m d330-i915 -v 2.0 --all
+sudo rm -rf /usr/src/d330-i915-2.0
+sudo update-initramfs -u
+```
+
+## Installation — method 2: full custom kernel (manual patch build)
+
+Only worth it if DKMS genuinely doesn't work for you (e.g. you can't get
+matching kernel headers at all). This is heavier and riskier — you're
+building and booting an entire replacement kernel, not just one module.
 
 ### 1. Apply the patch and build
 
@@ -126,13 +198,14 @@ make M=drivers/gpu/drm/i915   # fast incremental rebuild if the rest of the
 Rebuild a **complete, self-contained kernel** (vmlinuz + all modules), not
 just the one `.ko` — mixing a freshly built module into an already-running
 stock kernel by ABI version alone is fragile (module versioning/symbol CRCs
-need to match exactly). Install it as an *additional* GRUB entry, leave
-`GRUB_DEFAULT` pointed at your existing, known-good kernel, and use
-`sudo grub-reboot <new-entry-id>` for a one-shot boot to test before making
-it permanent. This is the same safety pattern used throughout the original
-investigation (see the write-up) — the custom kernel is otherwise 100%
-stock behavior; this patch only ever does anything when something
-explicitly writes to `d330_backlight_gpio`.
+need to match exactly; this is exactly the problem DKMS solves by building
+against your *actual* installed headers instead). Install it as an
+*additional* GRUB entry, leave `GRUB_DEFAULT` pointed at your existing,
+known-good kernel, and use `sudo grub-reboot <new-entry-id>` for a one-shot
+boot to test before making it permanent. This is the same safety pattern
+used throughout the original investigation (see the write-up) — the custom
+kernel is otherwise 100% stock behavior; this patch only ever does
+anything when something explicitly writes to `d330_backlight_gpio`.
 
 > **usr-merge warning:** if your target machine has `/lib -> usr/lib` as a
 > symlink (most modern distros), do **not** `tar xzf ... -C /` a package
@@ -149,7 +222,10 @@ $ ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
 d330_backlight_gpio
 ```
 
-### 3. Install the userspace pieces
+## Installing the userspace pieces (either method)
+
+Once the `d330_backlight_gpio` module param exists (verified above,
+regardless of which method got you there):
 
 ```bash
 sudo install -m 755 scripts/d330-backlight.sh /usr/local/bin/d330-backlight.sh
@@ -214,21 +290,24 @@ useful:
 ## License
 
 The scripts and documentation in this repo are BSD-3-Clause (see
-`LICENSE`). `patches/0001-d330-backlight-gpio-param.patch` is a derivative
-of `drivers/gpu/drm/i915/display/intel_dsi_vbt.c` from the Linux kernel and
-is therefore GPL-2.0-only, matching the kernel it patches, regardless of
-this repo's overall license.
+`LICENSE`). `patches/0001-d330-backlight-gpio-param.patch` and
+`dkms/d330-i915-2.0/` (which bundles actual Linux kernel source,
+`drivers/gpu/drm/i915` and one header from `drivers/platform/x86`, plus our
+patch on top) are GPL-2.0-only, matching the kernel they're built from,
+regardless of this repo's overall license.
 
 ## Disclaimer
 
-**Use at your own risk.** This involves patching and booting a custom
-kernel, flipping GPIOs on real hardware, and (per the installation notes)
-disabling Secure Boot. None of that is undoable-proof: a bad boot, a wrong
-GPIO index adapted from this patch, or a mistake following the install
-steps could leave a machine unbootable, and in the worst case damage
-hardware. Follow the safe-boot pattern in the installation steps (separate
-GRUB entry, pinned `GRUB_DEFAULT`, `grub-reboot` for one-shot testing)
-every time — don't make an unverified custom kernel your only boot option.
+**Use at your own risk.** This involves running a patched kernel module (or,
+with method 2, an entire custom kernel) and flipping GPIOs on real
+hardware, and may involve disabling Secure Boot. None of that is
+undoable-proof: a bad module/kernel, a wrong GPIO index adapted from this
+patch, or a mistake following the install steps could leave a machine
+unbootable, and in the worst case damage hardware. With method 2
+specifically, follow the safe-boot pattern in its installation steps
+(separate GRUB entry, pinned `GRUB_DEFAULT`, `grub-reboot` for one-shot
+testing) every time — don't make an unverified custom kernel your only
+boot option.
 
 This is shared as-is, from a personal hardware investigation, with **no
 warranty of any kind and no affiliation with Intel or Lenovo**. The author(s)
