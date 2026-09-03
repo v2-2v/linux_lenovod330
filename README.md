@@ -358,7 +358,9 @@ echo "$USER ALL=(root) NOPASSWD: /usr/local/bin/d330-backlight.sh off, /usr/loca
 sudo chmod 440 /etc/sudoers.d/d330-backlight
 sudo visudo -cf /etc/sudoers.d/d330-backlight   # sanity-check syntax before trusting it
 
-# idle-timeout daemon (5 min default; change anytime with d330-set-idle-timeout)
+# idle-timeout daemon (needs xprintidle; 5 min default, change anytime with
+# d330-set-idle-timeout). It needs an X11 session -- see the note below.
+sudo apt-get install -y xprintidle
 systemctl --user daemon-reload
 systemctl --user enable --now d330-backlight-idle.service
 d330-set-idle-timeout 5
@@ -371,9 +373,6 @@ sudo mkdir -p /etc/systemd/logind.conf.d
 sudo install -m 644 scripts/90-d330-lid.conf /etc/systemd/logind.conf.d/90-d330-lid.conf
 sudo systemctl restart systemd-logind acpid
 ```
-
-`xprintidle` is required by the idle daemon (`sudo apt-get install
-xprintidle`); it needs an X11 session.
 
 The kernel patch/module itself doesn't care about your desktop or display
 server, but the idle daemon here is X11-only (via `xprintidle`) — Wayland
@@ -398,6 +397,28 @@ close/open handling (`acpid`) is a separate mechanism and keeps working
 either way. Under the hood, setting a timeout just writes
 `IDLE_MINUTES=10` to `~/.config/d330-backlight-idle.conf`,
 which the daemon re-reads on every poll.
+
+### Interaction with the screensaver / lock screen
+
+`xprintidle` reports raw X11 input idle time — how long since the last key
+press or mouse move, system-wide — regardless of whether Cinnamon's own
+screensaver/lock UI happens to be showing on top. So this daemon keeps
+working the same way whether the screensaver is up or not: the backlight
+still goes off once idle time crosses the threshold, and touching the
+keyboard/mouse (even just to type your unlock password) resets idle time
+immediately, bringing the backlight back within one poll (~2s) — before
+you've even finished unlocking.
+
+On a stock install following the [Linux Mint community
+guide](https://github.com/lucasgabmoreno/linuxmint_lenovod330), DPMS is
+force-disabled at the Xorg level, so the screensaver's own would-be
+display-blanking is already a no-op there regardless — nothing else is
+competing with this daemon for control of the backlight. Cinnamon's
+default screensaver activation delay (`org.cinnamon.desktop.session
+idle-delay`) is 5 minutes out of the box on Mint, same as this daemon's
+default — check yours with
+`gsettings get org.cinnamon.desktop.session idle-delay` (value is in
+seconds) if you want to reason about which fires first.
 
 ## Adapting to a different panel
 
@@ -424,7 +445,10 @@ The scripts and documentation in this repo are BSD-3-Clause (see
 `dkms/d330-i915-2.0/` (which bundles actual Linux kernel source,
 `drivers/gpu/drm/i915` and one header from `drivers/platform/x86`, plus our
 patch on top) are GPL-2.0-only, matching the kernel they're built from,
-regardless of this repo's overall license.
+regardless of this repo's overall license — see
+`dkms/d330-i915-2.0/COPYING` and `dkms/d330-i915-2.0/LICENSES/preferred/GPL-2.0`
+(carried over verbatim from the kernel source itself) for the full license
+text.
 
 ## Disclaimer
 

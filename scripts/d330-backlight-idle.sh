@@ -16,7 +16,17 @@ while true; do
   [ -f "$CONF" ] && . "$CONF"
   idle_off_ms=$(( IDLE_MINUTES * 60000 ))
 
-  idle=$(xprintidle 2>/dev/null || echo 0)
+  if ! command -v xprintidle >/dev/null 2>&1; then
+    # Don't silently fall back to "idle=0" forever -- that makes idle
+    # auto-off a permanent, invisible no-op. Log (visible via
+    # `journalctl --user -u d330-backlight-idle.service`) and retry next
+    # poll; installing xprintidle later self-heals with no restart needed.
+    echo "d330-backlight-idle: xprintidle not found -- idle auto-off is inactive until it's installed (sudo apt-get install xprintidle)" >&2
+    sleep "$POLL_S"
+    continue
+  fi
+
+  idle=$(xprintidle 2>/dev/null) || { sleep "$POLL_S"; continue; }
   if [ "$idle" -ge "$idle_off_ms" ] && [ "$state" = on ]; then
     sudo -n /usr/local/bin/d330-backlight.sh off
     state=off
