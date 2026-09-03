@@ -26,6 +26,48 @@ version of the same bug) just leaves you with a screen that never turns off
 at all — which is what several D330 setup guides end up recommending, and
 what pushed this project.
 
+## Confirmed working on
+
+- **Hardware**: Lenovo IdeaPad D330-10IGM
+- **OS**: Linux Mint 22.3 (Cinnamon, X11)
+
+Should apply more broadly (see [The trick](#the-trick) below), but this is
+the only combination actually verified end-to-end so far. The idle daemon
+specifically is X11-only for now (via `xprintidle`) — Wayland support is
+planned but not done yet; see the note under [Installing and configuring
+the userspace
+pieces](#installing-and-configuring-the-userspace-pieces-either-method).
+
+## Before you install: disable suspend AND your desktop's own screen-blanking
+
+This tool is meant to be the *only* thing that ever touches the backlight.
+If suspend is still enabled, or your desktop environment's own idle
+screen-blank/DPMS-off is still active, you're right back to hitting the bug
+this exists to avoid — both of those go through the same buggy panel
+power/DSI re-init path. Two things need to be off before you go further:
+
+**1. Suspend / hibernate** (systemd):
+
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+**2. Your desktop's own idle screen-blank / DPMS-off timeout.** On Linux
+Mint (Cinnamon) — the environment this repo is verified on:
+
+```bash
+gsettings set org.cinnamon.settings-daemon.plugins.power sleep-display-ac 0
+gsettings set org.cinnamon.settings-daemon.plugins.power sleep-display-battery 0
+gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
+gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-battery-timeout 0
+gsettings set org.cinnamon.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
+```
+
+Other desktops (GNOME, KDE, XFCE...) have their own equivalent power
+settings — same goal either way: nothing except this repo's idle daemon and
+lid handler should ever be allowed to touch the display's power state.
+
 ## What this repository provides
 
 - A small, targeted i915 kernel patch, packaged as a **DKMS module** so
@@ -187,7 +229,7 @@ d330_backlight_gpio
 
 **This module param alone does nothing by itself** — it just gives you a
 knob. Continue to
-[Installing the userspace pieces](#installing-the-userspace-pieces-either-method)
+[Installing and configuring the userspace pieces](#installing-and-configuring-the-userspace-pieces-either-method)
 below to get actual idle-timeout and lid-close automation.
 
 **Why the source is bundled instead of just the patch**: out-of-tree builds
@@ -261,10 +303,10 @@ d330_backlight_gpio
 
 **This module param alone does nothing by itself** — it just gives you a
 knob. Continue to
-[Installing the userspace pieces](#installing-the-userspace-pieces-either-method)
+[Installing and configuring the userspace pieces](#installing-and-configuring-the-userspace-pieces-either-method)
 below to get actual idle-timeout and lid-close automation.
 
-## Installing the userspace pieces (either method)
+## Installing and configuring the userspace pieces (either method)
 
 **Required regardless of which installation method you used above** — the
 kernel module only exposes the on/off knob; these scripts are what actually
@@ -302,12 +344,12 @@ sudo systemctl restart systemd-logind acpid
 `xprintidle` is required by the idle daemon (`sudo apt-get install
 xprintidle`); it needs an X11 session.
 
-**Tested on**: Linux Mint 22.3 (Cinnamon, X11) only, so far. The kernel
-patch/module itself doesn't care about your desktop or display server, but
-the idle daemon here is X11-only (via `xprintidle`) — Wayland support
-(likely via the compositor's own idle-notify protocol) hasn't been done
-yet and is planned. `acpid`-based lid handling and the plain
-`d330-backlight.sh off`/`on` script don't touch X11 at all, so those
+The kernel patch/module itself doesn't care about your desktop or display
+server, but the idle daemon here is X11-only (via `xprintidle`) — Wayland
+support (likely via the compositor's own idle-notify protocol) hasn't been
+done yet and is planned (see [Confirmed working
+on](#confirmed-working-on) above). `acpid`-based lid handling and the
+plain `d330-backlight.sh off`/`on` script don't touch X11 at all, so those
 should already work under Wayland as-is.
 
 ## Changing the idle timeout
