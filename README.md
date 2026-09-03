@@ -129,12 +129,19 @@ events.
   and a working compiler toolchain (`build-essential` or equivalent) — DKMS
   needs these to build against your kernel; method 2 needs a full matching
   kernel source package instead.
-- **Secure Boot**: if your system already has a MOK (Machine Owner Key)
-  enrolled for DKMS module signing — common if you've ever installed the
-  NVIDIA driver or anything else via DKMS — `dkms build` signs the module
-  automatically and it Just Works under Secure Boot. Otherwise, disable
-  Secure Boot, or enroll a MOK and sign it yourself; an unsigned
-  kernel/module will silently fail to load.
+- **Secure Boot**: with method 1, on a `shim-signed`-based distro (Ubuntu,
+  Mint, Debian...) `dkms build` auto-generates a MOK (Machine Owner Key) at
+  `/var/lib/shim-signed/mok/` if you don't have one yet, and signs the
+  module with it — but *signing isn't the same as trusting*. Secure Boot
+  will only accept it once that MOK is actually **enrolled** in firmware,
+  which is a one-time, per-machine, physically-confirmed step (can't be
+  scripted over SSH): `sudo mokutil --import /var/lib/shim-signed/mok/MOK.der`,
+  set a temporary password, reboot, and complete it at the blue "MOK
+  Manager" screen. Check `sudo mokutil --list-enrolled` — if this MOK's
+  fingerprint isn't already listed, either enroll it once (Secure Boot can
+  then stay on for good) or just leave Secure Boot off. Method 2 doesn't
+  sign anything at all, so it needs Secure Boot off (or you sign the kernel
+  yourself) every time.
 - `sudo` access.
 
 ## Installation — method 1: DKMS (recommended)
@@ -172,6 +179,11 @@ $ modinfo -F filename i915
 $ ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
 d330_backlight_gpio
 ```
+
+**This module param alone does nothing by itself** — it just gives you a
+knob. Continue to
+[Installing the userspace pieces](#installing-the-userspace-pieces-either-method)
+below to get actual idle-timeout and lid-close automation.
 
 **Why the source is bundled instead of just the patch**: out-of-tree builds
 of `drivers/gpu/drm/i915` hit a handful of headers that `#include` siblings
@@ -242,10 +254,17 @@ $ ls /sys/module/i915/parameters/ | grep d330_backlight_gpio
 d330_backlight_gpio
 ```
 
+**This module param alone does nothing by itself** — it just gives you a
+knob. Continue to
+[Installing the userspace pieces](#installing-the-userspace-pieces-either-method)
+below to get actual idle-timeout and lid-close automation.
+
 ## Installing the userspace pieces (either method)
 
-Once the `d330_backlight_gpio` module param exists (verified above,
-regardless of which method got you there):
+**Required regardless of which installation method you used above** — the
+kernel module only exposes the on/off knob; these scripts are what actually
+turn the backlight off on idle/lid-close and back on. Run this once
+`d330_backlight_gpio` exists (verified above):
 
 ```bash
 sudo install -m 755 scripts/d330-backlight.sh /usr/local/bin/d330-backlight.sh
