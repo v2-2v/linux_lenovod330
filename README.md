@@ -38,6 +38,19 @@ planned but not done yet; see the note under [Installing and configuring
 the userspace
 pieces](#installing-and-configuring-the-userspace-pieces-either-method).
 
+**On Linux Mint specifically** (the exact environment this repo was
+verified on), do these two first, before installing this repo:
+
+1. [lucasgabmoreno/linuxmint_lenovod330](https://github.com/lucasgabmoreno/linuxmint_lenovod330)
+   — the original community setup guide for this model on Mint (disables
+   suspend, tames several other D330-on-Mint quirks). This repo builds on
+   top of that baseline.
+2. [v2-2v/linux_lenovod330-linuxmint-login-backlight-only-fix](https://github.com/v2-2v/linux_lenovod330-linuxmint-login-backlight-only-fix)
+   — fixes a *different* trigger of this same underlying bug: the screen
+   sometimes coming up backlight-only right at the login→desktop
+   transition (Cinnamon auto-rotating the display forces a modeset). Works
+   standalone on a stock kernel, independent of this repo's DKMS patch.
+
 ## Before you install: disable suspend AND your desktop's own screen-blanking
 
 This tool is meant to be the *only* thing that ever touches the backlight.
